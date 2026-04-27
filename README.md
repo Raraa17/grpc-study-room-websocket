@@ -1,7 +1,9 @@
 # grpc-study-room-websocket
 
-## Adinda Cahya Pramesti - 5027241121
-## Zahra Hafizhah - 5027241121
+| No | Nama                                        | NRP         |
+|----|---------------------------------------------|-------------|
+| 1  | Adinda Cahya Pramesti                       | 5027241117  |
+| 2  | Zahra Hafizhah                              | 5027241121  |
 
 ## Cara Menjalankan Projek
 
