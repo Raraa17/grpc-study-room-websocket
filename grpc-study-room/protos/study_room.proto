@@ -1,0 +1,220 @@
+syntax = "proto3";
+
+package studyroom;
+
+import "google/protobuf/empty.proto";
+
+// =============================================
+// ROOM SERVICE - Manajemen data ruangan
+// =============================================
+service RoomService {
+  // Unary: Ambil semua ruangan
+  rpc GetAllRooms(google.protobuf.Empty) returns (RoomListResponse);
+
+  // Unary: Ambil detail satu ruangan
+  rpc GetRoomDetail(RoomRequest) returns (RoomDetailResponse);
+
+  // Server-side Streaming: Live update ketersediaan ruangan
+  rpc WatchRoomAvailability(WatchRequest) returns (stream RoomStatusUpdate);
+}
+
+// =============================================
+// BOOKING SERVICE - Pemesanan ruangan
+// =============================================
+service BookingService {
+  // Unary: Booking sebuah ruangan
+  rpc BookRoom(BookingRequest) returns (BookingResponse);
+
+  // Unary: Batalkan booking
+  rpc CancelBooking(CancelRequest) returns (CancelResponse);
+
+  // Unary: Cek status booking
+  rpc GetBookingStatus(BookingStatusRequest) returns (BookingStatusResponse);
+
+  // Unary: Lihat daftar booking aktif user
+  rpc GetUserBookings(UserRequest) returns (UserBookingsResponse);
+}
+
+// =============================================
+// NOTIFICATION SERVICE - Notifikasi real-time
+// =============================================
+service NotificationService {
+  // Server-side Streaming: Terima notifikasi real-time
+  rpc SubscribeNotifications(SubscribeRequest) returns (stream Notification);
+
+  // Unary: Kirim notifikasi manual (admin)
+  rpc SendNotification(SendNotifRequest) returns (SendNotifResponse);
+
+  // Unary: Ambil history notifikasi user
+  rpc GetNotificationHistory(UserRequest) returns (NotificationHistoryResponse);
+}
+
+// =============================================
+// MESSAGE TYPES - Room Service
+// =============================================
+message RoomRequest {
+  string room_id = 1;
+}
+
+message WatchRequest {
+  string client_id = 1; // "" = watch all rooms
+  string room_id = 2;   // kosong = semua ruangan
+}
+
+message RoomListResponse {
+  repeated RoomInfo rooms = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message RoomDetailResponse {
+  RoomInfo room = 1;
+  repeated BookingSlot active_bookings = 2;
+  bool success = 3;
+  string message = 4;
+}
+
+message RoomStatusUpdate {
+  string room_id = 1;
+  string room_name = 2;
+  RoomStatus status = 3;
+  int32 capacity = 4;
+  int32 current_occupancy = 5;
+  string timestamp = 6;
+  string event_type = 7; // "BOOKED", "CANCELLED", "FULL", "AVAILABLE"
+}
+
+message RoomInfo {
+  string room_id = 1;
+  string name = 2;
+  int32 capacity = 3;
+  string location = 4;
+  repeated string facilities = 5;
+  RoomStatus status = 6;
+  int32 current_occupancy = 7;
+}
+
+message BookingSlot {
+  string booking_id = 1;
+  string user_id = 2;
+  string user_name = 3;
+  string start_time = 4;
+  string end_time = 5;
+}
+
+enum RoomStatus {
+  AVAILABLE = 0;
+  OCCUPIED = 1;
+  FULL = 2;
+  MAINTENANCE = 3;
+}
+
+// =============================================
+// MESSAGE TYPES - Booking Service
+// =============================================
+message BookingRequest {
+  string user_id = 1;
+  string user_name = 2;
+  string room_id = 3;
+  string date = 4;       // format: YYYY-MM-DD
+  string start_time = 5; // format: HH:MM
+  string end_time = 6;   // format: HH:MM
+  int32 num_people = 7;
+  string purpose = 8;
+}
+
+message BookingResponse {
+  bool success = 1;
+  string booking_id = 2;
+  string message = 3;
+  string room_name = 4;
+  string confirmation_code = 5;
+}
+
+message CancelRequest {
+  string booking_id = 1;
+  string user_id = 2;
+  string reason = 3;
+}
+
+message CancelResponse {
+  bool success = 1;
+  string message = 2;
+  string booking_id = 3;
+}
+
+message BookingStatusRequest {
+  string booking_id = 1;
+}
+
+message BookingStatusResponse {
+  bool success = 1;
+  string booking_id = 2;
+  string status = 3; // "ACTIVE", "CANCELLED", "COMPLETED"
+  string room_name = 4;
+  string user_name = 5;
+  string start_time = 6;
+  string end_time = 7;
+  string message = 8;
+}
+
+message UserRequest {
+  string user_id = 1;
+}
+
+message UserBookingsResponse {
+  bool success = 1;
+  repeated BookingInfo bookings = 2;
+  int32 total = 3;
+}
+
+message BookingInfo {
+  string booking_id = 1;
+  string room_id = 2;
+  string room_name = 3;
+  string date = 4;
+  string start_time = 5;
+  string end_time = 6;
+  string status = 7;
+  string purpose = 8;
+  string confirmation_code = 9;
+}
+
+// =============================================
+// MESSAGE TYPES - Notification Service
+// =============================================
+message SubscribeRequest {
+  string user_id = 1;
+  string user_name = 2;
+}
+
+message Notification {
+  string notif_id = 1;
+  string user_id = 2;
+  string title = 3;
+  string message = 4;
+  string type = 5;      // "BOOKING_CONFIRMED", "BOOKING_CANCELLED", "ROOM_FULL", "REMINDER"
+  string timestamp = 6;
+  string room_id = 7;
+  string booking_id = 8;
+}
+
+message SendNotifRequest {
+  string target_user_id = 1; // "" = broadcast ke semua
+  string title = 2;
+  string message = 3;
+  string type = 4;
+  string room_id = 5;
+}
+
+message SendNotifResponse {
+  bool success = 1;
+  string message = 2;
+  int32 recipients = 3;
+}
+
+message NotificationHistoryResponse {
+  bool success = 1;
+  repeated Notification notifications = 2;
+  int32 total = 3;
+}

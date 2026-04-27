@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Study Room – Real-Time Dashboard</title>
+  <meta name="description"
+    content="Dashboard pemesanan ruang belajar kampus dengan update real-time via WebSocket dan gRPC." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <!-- ==================== LOGIN SCREEN ==================== -->
+  <div id="login-screen" class="screen active">
+    <div class="login-bg">
+      <div class="login-orb orb1"></div>
+      <div class="login-orb orb2"></div>
+      <div class="login-orb orb3"></div>
+    </div>
+
+    <!-- Theme toggle on login screen -->
+    <button id="btn-theme-login" class="theme-toggle-login" title="Ganti Tema" aria-label="Toggle tema">
+      <span class="theme-icon">☀️</span>
+    </button>
+
+    <div class="login-card glass">
+      <div class="login-logo">
+        <div class="logo-icon-wrap">
+          <span class="logo-icon">🏫</span>
+        </div>
+        <h1>Smart Study Room</h1>
+        <p>Sistem Pemesanan Ruang Belajar Real-Time</p>
+      </div>
+
+      <!-- Komponen 1: Connection Status Indicator -->
+      <div id="ws-status-login" class="ws-badge disconnected">
+        <span class="ws-dot"></span>
+        <span id="ws-label-login">Menghubungkan…</span>
+      </div>
+
+      <form id="login-form" class="login-form" autocomplete="off">
+        <div class="field-group">
+          <label for="input-uid">NIM / User ID</label>
+          <div class="input-wrap">
+            <span class="input-icon">🎓</span>
+            <input id="input-uid" type="text" placeholder="Contoh: 12345678" required />
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="input-uname">Nama Lengkap</label>
+          <div class="input-wrap">
+            <span class="input-icon">👤</span>
+            <input id="input-uname" type="text" placeholder="Contoh: Adinda Cahya" required />
+          </div>
+        </div>
+        <button id="btn-login" type="submit" class="btn btn-primary btn-full">
+          <span>Masuk ke Dashboard</span>
+          <span class="btn-arrow">→</span>
+        </button>
+        <p id="login-error" class="error-msg hidden"></p>
+      </form>
+
+      <div class="login-footer">
+        <span class="tech-badge">⚡ WebSocket</span>
+        <span class="tech-badge">🔗 gRPC</span>
+        <span class="tech-badge">📡 Real-Time</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== DASHBOARD ==================== -->
+  <div id="dashboard-screen" class="screen">
+
+    <!-- ======= SIDEBAR ======= -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-logo-icon">🏫</div>
+        <div>
+          <div class="sidebar-app-name">StudyRoom</div>
+          <div class="sidebar-app-sub">Smart Booking System</div>
+        </div>
+      </div>
+
+      <!-- User Card -->
+      <div class="sidebar-user" id="user-chip">
+        <span id="user-avatar" class="sidebar-user-avatar">👤</span>
+        <div>
+          <div class="sidebar-user-name" id="user-display-name">–</div>
+          <div class="sidebar-user-id" id="sidebar-user-id"></div>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <nav class="sidebar-nav">
+        <div class="nav-label">UTAMA</div>
+        <a class="nav-link active" data-nav="page-dashboard" href="#">
+          <span class="nav-icon">📊</span> Dashboard
+        </a>
+        <a class="nav-link" data-nav="page-rooms" href="#">
+          <span class="nav-icon">🏛️</span> Semua Ruangan
+        </a>
+
+        <div class="nav-label">BOOKING</div>
+        <a class="nav-link" data-nav="page-booking" href="#">
+          <span class="nav-icon">📅</span> Buat Booking
+        </a>
+        <a class="nav-link" data-nav="page-mybooking" href="#">
+          <span class="nav-icon">📋</span> Booking Saya
+        </a>
+
+        <div class="nav-label">NOTIFIKASI</div>
+        <a class="nav-link" data-nav="page-notifikasi" href="#">
+          <span class="nav-icon">🔔</span> Riwayat Notifikasi
+        </a>
+
+        <div class="nav-label">ADMIN</div>
+        <a class="nav-link" data-nav="page-admin" href="#">
+          <span class="nav-icon">📢</span> Kirim Notifikasi
+        </a>
+      </nav>
+
+      <!-- Connection Status at bottom -->
+      <div class="sidebar-bottom">
+        <!-- Komponen 1: Connection Status Indicator (event-driven) -->
+        <div id="ws-status-dash" class="ws-badge disconnected sidebar-ws">
+          <span class="ws-dot"></span>
+          <span id="ws-label-dash">Menghubungkan…</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ======= MAIN CONTENT ======= -->
+    <div class="main-area">
+
+      <!-- Top Header -->
+      <header class="top-header">
+        <div class="top-header-left">
+          <h1 class="top-title" id="top-title">Dashboard</h1>
+          <p class="top-subtitle" id="top-subtitle">Ringkasan ruangan dan statistik</p>
+        </div>
+        <div class="top-header-right">
+          <!-- Komponen 3: Notification Bell (event-driven) -->
+          <button id="btn-notif-bell" class="icon-btn notif-btn" title="Notifikasi">
+            🔔
+            <span id="notif-badge" class="notif-badge hidden">0</span>
+          </button>
+          <!-- Theme Toggle -->
+          <button id="btn-theme-dash" class="icon-btn theme-btn" title="Ganti Tema">
+            <span class="theme-icon">☀️</span>
+          </button>
+          <button id="btn-logout" class="btn btn-logout-btn">🔴 Keluar</button>
+        </div>
+      </header>
+
+      <!-- Page Container -->
+      <div class="page-container">
+
+        <!-- ===== PAGE: Dashboard ===== -->
+        <section class="page active" id="page-dashboard">
+          <!-- Komponen 2: Stats Bar (event-driven) -->
+          <div class="stats-bar" id="stats-bar">
+            <div class="stat-item stat-green" id="stat-available">
+              <div class="stat-icon-circle"><span>✅</span></div>
+              <div class="stat-info">
+                <span class="stat-num" id="count-available">–</span>
+                <span class="stat-lbl">Tersedia</span>
+              </div>
+            </div>
+            <div class="stat-item stat-yellow" id="stat-occupied">
+              <div class="stat-icon-circle"><span>👥</span></div>
+              <div class="stat-info">
+                <span class="stat-num" id="count-occupied">–</span>
+                <span class="stat-lbl">Terisi</span>
+              </div>
+            </div>
+            <div class="stat-item stat-red" id="stat-full">
+              <div class="stat-icon-circle"><span>🚫</span></div>
+              <div class="stat-info">
+                <span class="stat-num" id="count-full">–</span>
+                <span class="stat-lbl">Penuh</span>
+              </div>
+            </div>
+            <div class="stat-item stat-gray" id="stat-maint">
+              <div class="stat-icon-circle"><span>🔧</span></div>
+              <div class="stat-info">
+                <span class="stat-num" id="count-maint">–</span>
+                <span class="stat-lbl">Maintenance</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-header">
+            <h2>🏠 Ketersediaan Ruangan</h2>
+            <button id="btn-refresh-rooms" class="btn btn-ghost btn-sm">↻ Refresh</button>
+          </div>
+
+          <!-- Komponen 4: Room Status Grid (event-driven via gRPC Streaming) -->
+          <div id="room-grid" class="room-grid">
+            <div class="room-skeleton" id="room-loading">
+              <div class="sk-card"></div>
+              <div class="sk-card"></div>
+              <div class="sk-card"></div>
+              <div class="sk-card"></div>
+              <div class="sk-card"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== PAGE: Buat Booking ===== -->
+        <section class="page" id="page-booking">
+          <div class="content-card" id="booking-section">
+            <div class="content-card-header">
+              <span class="content-card-icon">📅</span>
+              <h3>Pesan Ruangan</h3>
+            </div>
+            <form id="booking-form" class="grid-form" autocomplete="off">
+              <div class="field-group">
+                <label for="bk-room">Room ID</label>
+                <div class="input-wrap">
+                  <span class="input-icon">🚪</span>
+                  <input id="bk-room" type="text" placeholder="R001" required />
+                </div>
+              </div>
+              <div class="field-group">
+                <label for="bk-date">Tanggal</label>
+                <div class="input-wrap">
+                  <span class="input-icon">📆</span>
+                  <input id="bk-date" type="date" required />
+                </div>
+              </div>
+              <div class="field-group">
+                <label for="bk-start">Jam Mulai</label>
+                <div class="input-wrap">
+                  <span class="input-icon">⏰</span>
+                  <input id="bk-start" type="time" required />
+                </div>
+              </div>
+              <div class="field-group">
+                <label for="bk-end">Jam Selesai</label>
+                <div class="input-wrap">
+                  <span class="input-icon">⏱️</span>
+                  <input id="bk-end" type="time" required />
+                </div>
+              </div>
+              <div class="field-group">
+                <label for="bk-people">Jumlah Orang</label>
+                <div class="input-wrap">
+                  <span class="input-icon">👥</span>
+                  <input id="bk-people" type="number" min="1" placeholder="2" required />
+                </div>
+              </div>
+              <div class="field-group col-span-2">
+                <label for="bk-purpose">Keperluan</label>
+                <div class="input-wrap">
+                  <span class="input-icon">📝</span>
+                  <input id="bk-purpose" type="text" placeholder="Belajar kelompok, diskusi, dll." required />
+                </div>
+              </div>
+              <div class="form-actions col-span-2">
+                <button type="submit" id="btn-book" class="btn btn-primary">
+                  <span>✅ Booking Sekarang</span>
+                </button>
+                <p id="booking-msg" class="form-msg"></p>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- ===== PAGE: Booking Saya ===== -->
+        <section class="page" id="page-mybooking">
+          <div class="content-card" id="mybooking-section">
+            <div class="content-card-header">
+              <span class="content-card-icon">📋</span>
+              <h3>Booking Saya</h3>
+              <button id="btn-load-mybooking" class="btn btn-ghost btn-sm ml-auto">↻ Refresh</button>
+            </div>
+            <div id="my-bookings-list" class="bookings-list">
+              <p class="empty-hint">Klik tombol Refresh untuk melihat booking Anda.</p>
+            </div>
+          </div>
+
+          <div class="content-card mt-2" id="cancel-section">
+            <div class="content-card-header">
+              <span class="content-card-icon">❌</span>
+              <h3>Batalkan Booking</h3>
+            </div>
+            <p class="section-hint">Masukkan Booking ID yang ingin dibatalkan. Kode bisa ditemukan di daftar "Booking
+              Saya".</p>
+            <form id="cancel-form" class="flex-form" autocomplete="off">
+              <div class="field-group">
+                <label for="cancel-id">Booking ID</label>
+                <div class="input-wrap">
+                  <span class="input-icon">🔑</span>
+                  <input id="cancel-id" type="text" placeholder="BK1234ABCD" required />
+                </div>
+              </div>
+              <div class="field-group">
+                <label for="cancel-reason">Alasan Pembatalan</label>
+                <div class="input-wrap">
+                  <span class="input-icon">💬</span>
+                  <input id="cancel-reason" type="text" placeholder="Jadwal berubah, acara dibatalkan, dll." />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" id="btn-cancel" class="btn btn-danger">❌ Batalkan Booking</button>
+                <p id="cancel-msg" class="form-msg"></p>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- ===== PAGE: Riwayat Notifikasi ===== -->
+        <section class="page" id="page-notifikasi">
+          <!-- Komponen 3: Notification Panel (event-driven via gRPC Streaming) -->
+          <div class="content-card" id="notif-panel">
+            <div class="content-card-header">
+              <span class="content-card-icon">🔔</span>
+              <div>
+                <h3>Riwayat Notifikasi</h3>
+                <p class="content-card-sub">Semua notifikasi yang kamu terima</p>
+              </div>
+              <button id="btn-clear-notif" class="btn btn-ghost btn-sm ml-auto">🗑️ Hapus Semua</button>
+            </div>
+            <div id="notif-list" class="scroll-list notif-full-list">
+              <div class="empty-state">
+                <div class="empty-state-icon">🔔</div>
+                <p class="empty-hint">Belum ada notifikasi</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== PAGE: Admin ===== -->
+        <section class="page" id="page-admin">
+          <div class="content-card" id="admin-section">
+            <div class="content-card-header">
+              <span class="content-card-icon">📢</span>
+              <h3>Kirim Notifikasi (Server Push)</h3>
+            </div>
+            <p class="section-hint">Kirim notifikasi broadcast ke semua pengguna secara proaktif dari server.</p>
+            <form id="notif-form" class="flex-form" autocomplete="off">
+              <div class="field-group">
+                <label for="notif-title">Judul</label>
+                <div class="input-wrap">
+                  <span class="input-icon">📌</span>
+                  <input id="notif-title" type="text" placeholder="Judul notifikasi…" required />
+                </div>
+              </div>
+              <div class="field-group">
+                <label for="notif-msg">Pesan</label>
+                <div class="input-wrap">
+                  <span class="input-icon">💬</span>
+                  <input id="notif-msg" type="text" placeholder="Isi pesan broadcast…" required />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" id="btn-send-notif" class="btn btn-accent">📤 Broadcast ke Semua</button>
+                <p id="notif-send-msg" class="form-msg"></p>
+              </div>
+            </form>
+          </div>
+
+          <!-- Komponen 5: gRPC Activity Log (event-driven) -->
+          <div class="content-card mt-2" id="log-panel">
+            <div class="content-card-header">
+              <span class="content-card-icon">📡</span>
+              <h3>Log gRPC &amp; WebSocket</h3>
+              <button id="btn-clear-log" class="btn btn-ghost btn-sm ml-auto">🗑️ Hapus</button>
+            </div>
+            <div class="log-legend">
+              <span class="legend-item grpc">gRPC</span>
+              <span class="legend-item ws">WebSocket</span>
+              <span class="legend-item booking">Booking</span>
+              <span class="legend-item system">Sistem</span>
+            </div>
+            <div id="activity-log" class="scroll-list">
+              <p class="empty-hint">Log aktivitas gRPC &amp; WebSocket akan tercatat di sini…</p>
+            </div>
+          </div>
+        </section>
+
+      </div><!-- /.page-container -->
+    </div><!-- /.main-area -->
+
+  </div><!-- /#dashboard-screen -->
+
+  <!-- ==================== TOAST ==================== -->
+  <div id="toast-container"></div>
+
+  <!-- ==================== NOTIFICATION DRAWER ==================== -->
+  <div id="notif-drawer" class="drawer glass hidden">
+    <div class="drawer-header">
+      <h3>🔔 Semua Notifikasi</h3>
+      <button id="btn-close-drawer" class="icon-btn">✕</button>
+    </div>
+    <div id="drawer-notif-list" class="scroll-list"></div>
+  </div>
+  <div id="drawer-overlay" class="overlay hidden"></div>
+
+  <!-- Core app logic (UNCHANGED) -->
+  <script src="app.js"></script>
+
+  <!-- Sidebar Navigation (UI-only, no backend changes) -->
+  <script>
+    (function () {
+      const navLinks = document.querySelectorAll('.nav-link');
+      const pages = document.querySelectorAll('.page');
+      const topTitle = document.getElementById('top-title');
+      const topSubtitle = document.getElementById('top-subtitle');
+
+      const pageInfo = {
+        'page-dashboard': { title: 'Dashboard', subtitle: 'Ringkasan ruangan dan statistik', target: 'page-dashboard' },
+        'page-rooms': { title: 'Semua Ruangan', subtitle: 'Daftar semua ruangan yang tersedia', target: 'page-dashboard' },
+        'page-booking': { title: 'Buat Booking', subtitle: 'Isi form untuk memesan ruangan', target: 'page-booking' },
+        'page-mybooking': { title: 'Booking Saya', subtitle: 'Daftar booking dan riwayat pembatalan', target: 'page-mybooking' },
+        'page-notifikasi': { title: 'Riwayat Notifikasi', subtitle: 'Semua notifikasi yang kamu terima', target: 'page-notifikasi' },
+        'page-admin': { title: 'Admin Panel', subtitle: 'Kirim notifikasi dan lihat activity log', target: 'page-admin' },
+      };
+
+      function navigateTo(navId) {
+        const info = pageInfo[navId] || {};
+        const targetPage = info.target || navId;
+
+        // Switch page visibility
+        pages.forEach(p => p.classList.remove('active'));
+        const el = document.getElementById(targetPage);
+        if (el) el.classList.add('active');
+
+        // Update nav highlight
+        navLinks.forEach(l => l.classList.remove('active'));
+        const activeLink = document.querySelector('.nav-link[data-nav="' + navId + '"]');
+        if (activeLink) activeLink.classList.add('active');
+
+        // Update header title
+        if (topTitle) topTitle.textContent = info.title || 'Dashboard';
+        if (topSubtitle) topSubtitle.textContent = info.subtitle || '';
+
+        // Auto-refresh data for certain pages
+        if (targetPage === 'page-mybooking' && typeof sendCommand === 'function') {
+          sendCommand('get_my_bookings');
+        }
+
+        // Scroll to top
+        document.querySelector('.page-container').scrollTop = 0;
+      }
+
+      // Nav click handlers
+      navLinks.forEach(function (link) {
+        link.addEventListener('click', function (e) {
+          e.preventDefault();
+          navigateTo(link.dataset.nav);
+        });
+      });
+
+      // Capture user ID from login form for sidebar display
+      var loginFormEl = document.getElementById('login-form');
+      if (loginFormEl) {
+        loginFormEl.addEventListener('submit', function () {
+          var idEl = document.getElementById('sidebar-user-id');
+          var uid = document.getElementById('input-uid').value.trim();
+          if (idEl) idEl.textContent = uid;
+        });
+      }
+
+      // Override quickBook to navigate to booking page first
+      if (typeof quickBook !== 'undefined') {
+        var _origQuickBook = quickBook;
+        window.quickBook = function (roomId) {
+          navigateTo('page-booking');
+          setTimeout(function () { _origQuickBook(roomId); }, 60);
+        };
+      }
+
+      // Expose navigateTo for potential use
+      window.sidebarNavigateTo = navigateTo;
+    })();
+  </script>
+
+</body>
+
+</html>
