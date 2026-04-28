@@ -168,6 +168,6 @@ service NotificationService {
 
 ## 👥 Anggota Kelompok
 
-- [Nama 1] - [NIM]
-- [Nama 2] - [NIM]
-- [Nama 3] - [NIM]
+- Adinda Cahya Pramesti - 5027241117
+- Zahra Hafizhah - 5027241121
+
